@@ -1,7 +1,7 @@
 import './style.css';
 import './app.css';
 
-import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile} from '../wailsjs/go/main/App';
+import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile, AssignFileAssociation} from '../wailsjs/go/main/App';
 
 // Variables globales
 let unlockBlock, editorBlock, statusElement, resultElement, passwordElement, fileListElement;
@@ -166,6 +166,7 @@ document.querySelector('#app').innerHTML = `
                     <div id="fileList"></div>
                     <div class="sidebar-footer">
                         <button class="sidebar-new-button" onclick="createNewFile()">+ New File</button>
+                        <button class="sidebar-associate-button" onclick="assignAssociation()" title="Assign .stxt files">File helper</button>
                     </div>
                 </div>
                 <div class="main-content">
@@ -248,6 +249,11 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             window.openSearchPopup();
         }
+
+        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+            e.preventDefault();
+            window.assignAssociation();
+        }
     });
 
     // Editor-specific paste handling
@@ -271,7 +277,28 @@ document.addEventListener('DOMContentLoaded', function() {
     popupOverlay.addEventListener('click', function(e) {
         if (e.target === popupOverlay) window.closeSearchPopup();
     });
+
+    const associateButton = document.querySelector('.sidebar-associate-button');
+    if (associateButton) {
+        associateButton.addEventListener('focus', (e) => e.target.blur());
+    }
 });
+
+window.assignAssociation = function() {
+    const statusArea = document.getElementById('status');
+    statusArea.innerText = 'Assigning .stxt handler...';
+    AssignFileAssociation()
+        .then((result) => {
+            if (result) {
+                statusArea.innerText = result;
+            } else {
+                statusArea.innerText = '.stxt association updated.';
+            }
+        })
+        .catch((err) => {
+            statusArea.innerText = 'Could not assign file association: ' + err;
+        });
+};
 
 // Utility to escape regex special characters
 window.escapeRegExp = function(string) {

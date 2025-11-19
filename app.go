@@ -225,3 +225,22 @@ func (a *App) CreateNewFile(name string) (string, error) {
 
 	return ";", nil
 }
+
+// AssignFileAssociation registers the running executable as the default handler for .stxt files.
+func (a *App) AssignFileAssociation() (string, error) {
+	exePath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	cleanPath, err := filepath.EvalSymlinks(exePath)
+	if err != nil {
+		return "", err
+	}
+
+	if err := assignStxtFileAssociation(cleanPath); err != nil {
+		return "", err
+	}
+
+	return ".stxt files are now associated with pNotepad Plus.", nil
+}
