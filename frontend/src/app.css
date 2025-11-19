@@ -1,0 +1,239 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+.unlock-container {
+    background-color: #2d2d2d;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.unlock-title {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #e0e0e0;
+}
+
+.result {
+    height: 20px;
+    line-height: 20px;
+    margin: 1rem;
+    color: #e0e0e0;
+    font-size: 0.95rem;
+}
+
+.input-box {
+    margin: 1.5rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.input-box .input {
+    border: 1px solid #555;
+    border-radius: 4px;
+    outline: none;
+    height: 36px;
+    line-height: 36px;
+    padding: 0 12px;
+    color: #e0e0e0;
+    background-color: #1e1e1e;
+    width: 100%;
+    max-width: 250px;
+    transition: all 0.2s ease;
+}
+
+.input-box .input::placeholder {
+    color: #888;
+}
+
+.input-box .input:hover,
+.input-box .input:focus {
+    border-color: #888;
+    background-color: #252525;
+}
+
+.btn {
+    height: 36px;
+    line-height: 36px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    padding: 0 16px;
+    cursor: pointer;
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    font-weight: 500;
+    min-width: 80px;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background-color: #3d3d3d;
+    border-color: #888;
+}
+
+/* Layout for Editor with Sidebar */
+.editor-layout {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 250px;
+    background-color: #252526;
+    border-right: 1px solid #555;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.file-list-header {
+    padding: 10px;
+    font-weight: bold;
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #555;
+}
+
+.file-list-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    color: #cccccc;
+    border-bottom: 1px solid #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-list-item:hover {
+    background-color: #37373d;
+}
+
+.file-list-item.active {
+    background-color: #094771;
+    color: white;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.editor-toolbar {
+    padding: 4px;
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #555;
+}
+
+.editor-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.editor-button {
+    height: 24px;
+    min-width: 24px;
+    padding: 0 8px;
+    border: 1px solid #555;
+    background-color: #2d2d2d;
+    cursor: pointer;
+    border-radius: 2px;
+    color: #e0e0e0;
+}
+
+.editor-button:hover {
+    background-color: #3d3d3d;
+}
+
+#editor {
+    flex: 1;
+    padding: 8px;
+    margin: 0;
+    border: none;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    font-size: 1em;
+    font-family: "Consolas", monospace;
+    overflow-y: auto;
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+#editor p {
+    margin: 0;
+}
+
+.status-bar {
+    height: 24px;
+    line-height: 24px;
+    padding: 0 8px;
+    background-color: #2d2d2d;
+    border-top: 1px solid #555;
+    color: #888;
+    font-size: 0.9em;
+    display: flex;
+    justify-content: space-between;
+}
+
+#editor .align-left {
+    text-align: left;
+}
+
+#editor .align-center {
+    text-align: center;
+}
+
+#editor .align-right {
+    text-align: right;
+}
+
+/* Search bar container */
+.editor-search {
+    border-bottom: 1px solid #555;
+}
+
+/* Search input field */
+.search-input {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+/* Search buttons */
+.search-button {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.search-button:hover {
+    background-color: #3d3d3d;
+}
+
+/* Highlighted search matches */
+mark.search-highlight {
+    background-color: yellow;
+    color: black;
+}
+
+/* Current match */
+mark.search-highlight.current {
+    background-color: orange;
+    color: black;
+}

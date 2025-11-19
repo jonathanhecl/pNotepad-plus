@@ -3,6 +3,11 @@ module github.com/jonathanhecl/pNotepad-plus
 go 1.24.1
 
 require (
+	github.com/wailsapp/wails/v2 v2.11.0
+	golang.org/x/crypto v0.44.0
+)
+
+require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.0 // indirect
@@ -26,8 +31,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	github.com/wailsapp/wails/v2 v2.11.0 // indirect
-	golang.org/x/crypto v0.44.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
