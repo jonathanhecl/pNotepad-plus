@@ -166,7 +166,7 @@ document.querySelector('#app').innerHTML = `
                     <div id="fileList"></div>
                     <div class="sidebar-footer">
                         <button class="sidebar-new-button" onclick="createNewFile()">+ New File</button>
-                        <button class="sidebar-associate-button" onclick="assignAssociation()" title="Assign .stxt files">File helper</button>
+                        <button class="sidebar-associate-button" onclick="assignAssociation()" title="Assign .stxt files" aria-label="Assign .stxt files">🗃️</button>
                     </div>
                 </div>
                 <div class="main-content">
@@ -285,6 +285,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.assignAssociation = function() {
+    if (!window.confirm('Do you want to associate .stxt files with pNotepad Plus?')) {
+        return;
+    }
     const statusArea = document.getElementById('status');
     statusArea.innerText = 'Assigning .stxt handler...';
     AssignFileAssociation()
