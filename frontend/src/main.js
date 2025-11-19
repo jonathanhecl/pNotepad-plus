@@ -1,7 +1,7 @@
 import './style.css';
 import './app.css';
 
-import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile} from '../wailsjs/go/main/App';
+import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile} from '../wailsjs/go/main/App';
 
 // Variables globales
 let unlockBlock, editorBlock, statusElement, resultElement, passwordElement, fileListElement;
@@ -19,6 +19,27 @@ window.save = function(content) {
             } else {
                 statusElement.innerText = "File saved.";
             }
+
+window.createNewFile = function () {
+    const proposedName = prompt('New file name (optional):', '');
+    if (proposedName === null) {
+        return;
+    }
+
+    CreateNewFile(proposedName)
+        .then((result) => {
+            if (result.substring(0,1)==";") {
+                document.getElementById("editor").innerHTML = result.substring(1);
+                statusElement.innerText = "New file created.";
+                refreshFileList();
+            } else {
+                resultElement.innerText = result || "Could not create file.";
+            }
+        })
+        .catch((err) => {
+            resultElement.innerText = "Error: " + err;
+        });
+};
         });
     } catch (err) {
         console.error(err);
@@ -141,7 +162,10 @@ document.querySelector('#app').innerHTML = `
         <div class="flex flex-col h-screen" id="editorBlock" style="display: none;">
             <div class="editor-layout">
                 <div class="sidebar">
-                    <div class="file-list-header">Files</div>
+                    <div class="file-list-header">
+                        <span>Files</span>
+                        <button class="sidebar-button" onclick="createNewFile()">+ New</button>
+                    </div>
                     <div id="fileList"></div>
                 </div>
                 <div class="main-content">

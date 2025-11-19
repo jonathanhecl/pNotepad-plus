@@ -3,6 +3,8 @@
 
 export function ChangeFile(arg1:string):Promise<string>;
 
+export function CreateNewFile(arg1:string):Promise<string>;
+
 export function GetCurrentFile():Promise<string>;
 
 export function GetFiles():Promise<Array<string>>;

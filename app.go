@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -173,4 +175,53 @@ func (a *App) ChangeFile(filename string) (string, error) {
 
 	// If successful, return content prefixed with ; like UnlockFile
 	return ";" + content, nil
+}
+
+// CreateNewFile creates an empty file in the current directory using the active password
+func (a *App) CreateNewFile(name string) (string, error) {
+	if a.Directory == "" {
+		return "", errors.New("directory not set")
+	}
+
+	cleanName := strings.TrimSpace(name)
+	if cleanName == "" {
+		cleanName = fmt.Sprintf("notes_%d", time.Now().Unix())
+	}
+
+	defaultExt := filepath.Ext(a.Filename)
+	if defaultExt == "" {
+		defaultExt = ".stxt"
+	}
+
+	if filepath.Ext(cleanName) == "" {
+		cleanName += defaultExt
+	}
+
+	newPath := filepath.Join(a.Directory, cleanName)
+	if _, err := os.Stat(newPath); err == nil {
+		return "", fmt.Errorf("file '%s' already exists", cleanName)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	var data []byte
+	if a.Password != "" {
+		data = headerEncrypted
+		encryptedData, err := encrypt([]byte(""), a.Password)
+		if err != nil {
+			return "", err
+		}
+		data = append(data, encryptedData...)
+	} else {
+		data = []byte("")
+	}
+
+	if err := os.WriteFile(newPath, data, 0644); err != nil {
+		return "", err
+	}
+
+	a.Filename = newPath
+	runtime.WindowSetTitle(a.ctx, "pNotepad Plus ("+filepath.Base(newPath)+")")
+
+	return ";", nil
 }

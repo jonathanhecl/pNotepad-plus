@@ -6,6 +6,10 @@ export function ChangeFile(arg1) {
   return window['go']['main']['App']['ChangeFile'](arg1);
 }
 
+export function CreateNewFile(arg1) {
+  return window['go']['main']['App']['CreateNewFile'](arg1);
+}
+
 export function GetCurrentFile() {
   return window['go']['main']['App']['GetCurrentFile']();
 }
