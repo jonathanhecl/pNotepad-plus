@@ -24,6 +24,8 @@
     }]
   },
   "windows": {
+    "icon": "build/windows/icon.ico",
+    "info": "build/windows/info.json",
     "fileAssociations": [{
       "ext": ".stxt",
       "name": "Secure Text File",
