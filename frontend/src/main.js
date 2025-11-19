@@ -19,6 +19,11 @@ window.save = function(content) {
             } else {
                 statusElement.innerText = "File saved.";
             }
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
 
 window.createNewFile = function () {
     const proposedName = prompt('New file name (optional):', '');
@@ -40,11 +45,6 @@ window.createNewFile = function () {
             resultElement.innerText = "Error: " + err;
         });
 };
-        });
-    } catch (err) {
-        console.error(err);
-    }
-}
 
 window.unlock = function () {
     let password = passwordElement.value;
@@ -162,11 +162,11 @@ document.querySelector('#app').innerHTML = `
         <div class="flex flex-col h-screen" id="editorBlock" style="display: none;">
             <div class="editor-layout">
                 <div class="sidebar">
-                    <div class="file-list-header">
-                        <span>Files</span>
-                        <button class="sidebar-button" onclick="createNewFile()">+ New</button>
-                    </div>
+                    <div class="file-list-header">Files</div>
                     <div id="fileList"></div>
+                    <div class="sidebar-footer">
+                        <button class="sidebar-new-button" onclick="createNewFile()">+ New File</button>
+                    </div>
                 </div>
                 <div class="main-content">
                     <div class="editor-toolbar">
