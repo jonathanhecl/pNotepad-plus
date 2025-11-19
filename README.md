@@ -1,6 +1,6 @@
 # pNotepad Plus
 
-pNotepad Plus is a secure, encrypted text editor built with Go and Wails. It is an evolution of pNotepad2, adding features for file navigation and management within encrypted directories.
+pNotepad Plus is a secure, encrypted text editor built with Go and Wails. It is an evolution of pNotepad, adding features for file navigation and management within encrypted directories.
 
 ## Features
 
