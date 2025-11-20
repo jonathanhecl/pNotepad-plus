@@ -248,8 +248,30 @@
 }
 
 /* Search bar container */
-.editor-search {
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background-color: #2d2d2d;
     border-bottom: 1px solid #555;
+}
+
+.search-bar.hidden {
+    display: none;
+}
+
+.search-count {
+    font-size: 0.85em;
+    color: #aaa;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+.search-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
 }
 
 /* Search input field */

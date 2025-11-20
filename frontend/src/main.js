@@ -177,8 +177,17 @@ document.querySelector('#app').innerHTML = `
                             <button class="editor-button" onclick="alignText('align-left')"><i class="fas fa-align-left"></i></button>
                             <button class="editor-button" onclick="alignText('align-center')"><i class="fas fa-align-center"></i></button>
                             <button class="editor-button" onclick="alignText('align-right')"><i class="fas fa-align-right"></i></button>
-                            <button id="openSearch" class="editor-button"><i class="fas fa-search"></i></button>
+                            <button id="toggleSearch" class="editor-button" title="Toggle Search"><i class="fas fa-search"></i></button>
                             <button class="editor-button" onclick="save()">Save</button>
+                        </div>
+                    </div>
+                    <div id="searchBar" class="search-bar hidden">
+                        <input type="text" id="searchInput" placeholder="Find..." class="search-input"/>
+                        <span id="matchCount" class="search-count"></span>
+                        <div class="search-actions">
+                            <button id="findPrevBtn" class="search-button" title="Previous"><i class="fas fa-chevron-up"></i></button>
+                            <button id="findNextBtn" class="search-button" title="Next"><i class="fas fa-chevron-down"></i></button>
+                            <button id="closeSearchBtn" class="search-button" title="Close"><i class="fas fa-times"></i></button>
                         </div>
                     </div>
                     <div id="editor" contenteditable="true" spellcheck="false" oninput="formatTextInRealTime()" oncontextmenu="return true;"></div>
@@ -187,17 +196,6 @@ document.querySelector('#app').innerHTML = `
                         <span id="status"></span>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div id="searchPopup" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-            <div class="bg-gray-800 p-4 rounded">
-                <div class="flex gap-2 items-center">
-                    <input type="text" id="searchInput" placeholder="Search..." class="search-input"/>
-                    <button id="findBtn" class="search-button">Find</button>
-                    <button id="nextBtn" class="search-button">Next</button>
-                    <button id="closeBtn" class="search-button">Close</button>
-                </div>
-                <div id="matchCount" class="mt-2 text-sm text-gray-300"></div>
             </div>
         </div>
     </div>
@@ -223,31 +221,74 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Search UI event listeners
-    document.getElementById('findBtn').addEventListener('click', window.findText);
-    document.getElementById('nextBtn').addEventListener('click', window.nextMatch);
-    document.getElementById('openSearch').addEventListener('click', window.openSearchPopup);
-    document.getElementById('closeBtn').addEventListener('click', window.closeSearchPopup);
+    // document.getElementById('findBtn').addEventListener('click', window.findText); // Removed
+    document.getElementById('findNextBtn').addEventListener('click', window.nextMatch);
+    document.getElementById('findPrevBtn').addEventListener('click', window.prevMatch);
+    document.getElementById('toggleSearch').addEventListener('click', window.toggleSearch);
+    document.getElementById('closeSearchBtn').addEventListener('click', window.closeSearch);
     document.getElementById('searchInput').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // If there are already matches, go to next; otherwise, search
-            if (matches.length > 0) {
-                window.nextMatch();
+            if (e.shiftKey) {
+                 window.prevMatch();
             } else {
-                window.findText();
+                 // If there are already matches, go to next; otherwise, search
+                if (matches.length > 0) {
+                    window.nextMatch();
+                } else {
+                    window.findText();
+                }
             }
         } else if (e.key === 'Escape') {
             e.preventDefault();
-            window.closeSearchPopup();
+            window.closeSearch();
+        } else {
+            // Auto-search on typing (debounce could be added but let's keep it simple for now)
+            // window.findText(); 
+            // Actually, let's wait for Enter for findText to avoid flashing, 
+            // but user might expect realtime. Let's stick to Enter for now as per original design
+            // or enable realtime if requested. The original was "Find" button or Enter.
+        }
+    });
+    
+    // Realtime search on input
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const term = this.value;
+        if (term.length >= 2) {
+             window.findText();
+        } else {
+            // Clear if empty
+            if (term.length === 0) {
+                 // Clear highlights without closing
+                 const editor = document.getElementById('editor');
+                 editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
+                 matches = [];
+                 currentMatch = -1;
+                 document.getElementById('matchCount').innerText = '';
+            }
         }
     });
 
     // Global keyboard shortcuts
     document.addEventListener('keydown', function(e) {
-        // F3 to open search
+        // F3 to open search or next match
         if (e.key === 'F3') {
             e.preventDefault();
-            window.openSearchPopup();
+            if (document.getElementById('searchBar').classList.contains('hidden')) {
+                window.toggleSearch();
+            } else {
+                if (e.shiftKey) {
+                    window.prevMatch();
+                } else {
+                    window.nextMatch();
+                }
+            }
+        }
+        
+        // Ctrl+F
+        if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+             e.preventDefault();
+             window.toggleSearch();
         }
 
         if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
@@ -272,12 +313,9 @@ document.addEventListener('DOMContentLoaded', function() {
         formatTextInRealTime();
     });
 
-    // Close popup on outside click
-    const popupOverlay = document.getElementById('searchPopup');
-    popupOverlay.addEventListener('click', function(e) {
-        if (e.target === popupOverlay) window.closeSearchPopup();
-    });
-
+    // Close popup on outside click - REMOVED for integrated bar
+    // We want it to stay open
+    
     const associateButton = document.querySelector('.sidebar-associate-button');
     if (associateButton) {
         associateButton.addEventListener('focus', (e) => e.target.blur());
@@ -312,163 +350,130 @@ window.escapeRegExp = function(string) {
 window.findText = function() {
     const term = document.getElementById('searchInput').value;
     const editor = document.getElementById('editor');
-    // Remove existing highlights
-    editor.innerHTML = editor.innerHTML.replace(/<mark class=\"search-highlight(?: current)?\">([^<]*)<\/mark>/g, '$1');
-    if (!term) {
+    
+    // First, strip existing highlights to search in clean text
+    // This is crucial to avoid matching inside HTML tags or double marking
+    const content = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
+    
+    if (!term || term.length < 2) {
+        editor.innerHTML = content; // Cleaned content
         matches = [];
         currentMatch = -1;
         document.getElementById('matchCount').innerText = '';
         return;
     }
-    // Require at least 2 characters
-    if (term.length < 2) {
-        document.getElementById('matchCount').innerText = 'Enter at least 2 characters';
-        return;
-    }
-    const regex = new RegExp(window.escapeRegExp(term), 'gi');
-    editor.innerHTML = editor.innerHTML.replace(regex, match => `<mark class=\"search-highlight\">${match}</mark>`);
+    
+    const regex = new RegExp(`(${window.escapeRegExp(term)})`, 'gi');
+    // We need to be careful not to replace inside HTML tags if there are any (like <p> or <div>)
+    // But pNotepad uses execCommand which might insert <br> or <div>.
+    // Simple replacement on innerHTML is risky if matches overlap with tags.
+    // However, assuming simple text for now or careful regex.
+    
+    // A safer approach for highlighting:
+    // 1. Split by tags? No, too complex.
+    // 2. Use the existing approach but careful.
+    
+    const newContent = content.replace(regex, '<mark class="search-highlight">$1</mark>');
+    editor.innerHTML = newContent;
+    
     matches = Array.from(editor.querySelectorAll('mark.search-highlight'));
     currentMatch = 0;
     document.getElementById('matchCount').innerText = `${matches.length} matches`;
     if (matches.length > 0) {
         matches[0].classList.add('current');
         matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        document.getElementById('matchCount').innerText = 'No matches';
     }
 };
 
 // Function to navigate to next match
 window.nextMatch = function() {
-    if (matches.length === 0) return;
+    if (matches.length === 0) {
+        window.findText();
+        return;
+    }
     matches[currentMatch].classList.remove('current');
     currentMatch = (currentMatch + 1) % matches.length;
     matches[currentMatch].classList.add('current');
     matches[currentMatch].scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
-// Popup control functions
-window.openSearchPopup = function() {
-    const popup = document.getElementById('searchPopup');
-    popup.classList.remove('hidden');
-    // Save current cursor position/selection
-    const editor = document.getElementById('editor');
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-        savedSelection = selection.getRangeAt(0).cloneRange();
-    }
-    // Clear previous search
-    const searchInput = document.getElementById('searchInput');
-    searchInput.value = '';
-    // Clear highlights
-    editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
-    matches = [];
-    currentMatch = -1;
-    // Clear match count
-    document.getElementById('matchCount').innerText = '';
-    searchInput.focus();
+// Function to navigate to previous match
+window.prevMatch = function() {
+    if (matches.length === 0) return;
+    matches[currentMatch].classList.remove('current');
+    currentMatch = (currentMatch - 1 + matches.length) % matches.length;
+    matches[currentMatch].classList.add('current');
+    matches[currentMatch].scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
-window.closeSearchPopup = function() {
+// Search Bar control functions
+window.toggleSearch = function() {
+    const searchBar = document.getElementById('searchBar');
+    if (searchBar.classList.contains('hidden')) {
+        searchBar.classList.remove('hidden');
+        const searchInput = document.getElementById('searchInput');
+        searchInput.focus();
+        searchInput.select();
+        if (searchInput.value.length >= 2) {
+            window.findText();
+        }
+    } else {
+        window.closeSearch();
+    }
+};
+
+window.closeSearch = function() {
     const editor = document.getElementById('editor');
+    const searchBar = document.getElementById('searchBar');
     
-    // Calculate text position before clearing highlights
-    let textOffset = null;
+    // If not hidden, hide it
+    searchBar.classList.add('hidden');
     
-    // Priority 1: If there's a current match, use that position
-    if (currentMatch >= 0 && matches.length > 0) {
+    // We want to remove highlights but keep cursor at the current match if possible.
+    if (matches.length > 0 && currentMatch >= 0 && matches[currentMatch]) {
         const currentElement = matches[currentMatch];
         
-        // Walk through all text nodes to find the position
-        let offset = 0;
-        let foundMatch = false;
+        // Insert a temporary marker
+        const marker = document.createElement('span');
+        marker.id = 'cursor-temp-marker';
+        marker.innerText = '\u200B'; // Zero-width space
         
-        function walkNodes(node) {
-            if (foundMatch) return;
-            
-            if (node.nodeType === Node.TEXT_NODE) {
-                offset += node.length;
-            } else if (node === currentElement) {
-                // Found the match element, add its text length
-                offset += currentElement.textContent.length;
-                foundMatch = true;
-            } else if (node.nodeType === Node.ELEMENT_NODE) {
-                for (let child of node.childNodes) {
-                    walkNodes(child);
-                    if (foundMatch) break;
-                }
-            }
-        }
+        // Insert marker before the current match text
+        currentElement.parentNode.insertBefore(marker, currentElement);
         
-        walkNodes(editor);
+        // Now replace all marks
+        editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
         
-        if (foundMatch) {
-            textOffset = offset;
-        }
-    }
-    // Priority 2: If no match but there's a saved selection, calculate its offset
-    else if (savedSelection) {
-        try {
-            const range = document.createRange();
-            range.setStart(editor, 0);
-            range.setEnd(savedSelection.startContainer, savedSelection.startOffset);
-            textOffset = range.toString().length;
-        } catch (e) {
-            console.log('Could not calculate saved selection offset');
-        }
-    }
-    
-    // Clear highlights
-    editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
-    matches = [];
-    currentMatch = -1;
-    
-    // Clear match count
-    document.getElementById('matchCount').innerText = '';
-    
-    // Hide popup
-    document.getElementById('searchPopup').classList.add('hidden');
-    
-    // Return focus to editor
-    editor.focus();
-    
-    // Restore cursor position at the calculated offset
-    if (textOffset !== null) {
-        try {
+        // Find marker
+        const foundMarker = document.getElementById('cursor-temp-marker');
+        if (foundMarker) {
+            // Restore cursor
             const selection = window.getSelection();
             const range = document.createRange();
-            let currentOffset = 0;
-            let targetNode = null;
-            let targetOffset = 0;
+            range.setStartAfter(foundMarker);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
             
-            function findPosition(node) {
-                if (targetNode) return;
-                
-                if (node.nodeType === Node.TEXT_NODE) {
-                    if (currentOffset + node.length >= textOffset) {
-                        targetNode = node;
-                        targetOffset = textOffset - currentOffset;
-                    } else {
-                        currentOffset += node.length;
-                    }
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    for (let child of node.childNodes) {
-                        findPosition(child);
-                        if (targetNode) break;
-                    }
-                }
-            }
+            // Remove marker
+            foundMarker.remove();
             
-            findPosition(editor);
-            
-            if (targetNode) {
-                range.setStart(targetNode, targetOffset);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-        } catch (e) {
-            console.log('Could not restore cursor position:', e);
+            // Ensure we focus editor
+            editor.focus();
+        } else {
+             // Fallback
+             editor.focus();
         }
+    } else {
+        // Just clear and focus
+        editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
+        editor.focus();
     }
     
-    savedSelection = null;
+    matches = [];
+    currentMatch = -1;
+    document.getElementById('matchCount').innerText = '';
 };
+
