@@ -81,6 +81,30 @@ func (a *App) SaveFile(content, password string) error {
 	return nil
 }
 
+func (a *App) SaveAsNewPassword(content, newPassword string) error {
+	if newPassword == "" {
+		return errors.New("new password cannot be empty")
+	}
+
+	var encrypted []byte
+	encrypted = headerEncrypted
+	encryptedData, err := encrypt([]byte(content), newPassword)
+	if err != nil {
+		return err
+	}
+	encrypted = append(encrypted, encryptedData...)
+
+	err = os.WriteFile(a.Filename, encrypted, 0644)
+	if err != nil {
+		return err
+	}
+
+	// Update the current password to the new one
+	a.Password = newPassword
+
+	return nil
+}
+
 func (a *App) TryLoad() (string, error) {
 	if _, err := os.Stat(a.Filename); os.IsNotExist(err) {
 		file, err := os.Create(a.Filename)

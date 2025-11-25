@@ -15,6 +15,8 @@ export function GetVersion():Promise<string>;
 
 export function Greet(arg1:string):Promise<string>;
 
+export function SaveAsNewPassword(arg1:string,arg2:string):Promise<void>;
+
 export function SaveFile(arg1:string,arg2:string):Promise<void>;
 
 export function TryLoad():Promise<string>;

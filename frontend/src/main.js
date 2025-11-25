@@ -1,7 +1,7 @@
 import './style.css';
 import './app.css';
 
-import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile, AssignFileAssociation} from '../wailsjs/go/main/App';
+import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile, AssignFileAssociation, SaveAsNewPassword} from '../wailsjs/go/main/App';
 
 // Variables globales
 let unlockBlock, editorBlock, statusElement, resultElement, passwordElement, fileListElement;
@@ -27,6 +27,48 @@ window.save = function(content) {
         });
     } catch (err) {
         console.error(err);
+    }
+}
+
+window.saveWithNewPassword = function() {
+    try {
+        const newPassword = prompt("Enter new password for this file:");
+        if (newPassword === null) {
+            return; // User cancelled
+        }
+        
+        if (newPassword.trim() === "") {
+            statusElement.innerText = "Password cannot be empty.";
+            return;
+        }
+        
+        const confirmNewPassword = prompt("Confirm new password:");
+        if (confirmNewPassword === null) {
+            return; // User cancelled
+        }
+        
+        if (newPassword !== confirmNewPassword) {
+            statusElement.innerText = "Passwords do not match.";
+            return;
+        }
+        
+        let text = document.getElementById("editor").innerHTML;
+        SaveAsNewPassword(text, newPassword).then((result) => {
+            if (result) {
+                statusElement.innerText = result;
+            } else {
+                statusElement.innerText = "File saved with new password.";
+                // Update password field and reset unsaved changes
+                passwordElement.value = newPassword;
+                hasUnsavedChanges = false;
+                originalContent = text;
+            }
+        }).catch((err) => {
+            statusElement.innerText = "Error: " + err;
+        });
+    } catch (err) {
+        console.error(err);
+        statusElement.innerText = "Error saving with new password.";
     }
 }
 
@@ -275,6 +317,7 @@ document.querySelector('#app').innerHTML = `
                             <button class="editor-button" onclick="alignText('align-right')"><i class="fas fa-align-right"></i></button>
                             <button id="toggleSearch" class="editor-button" title="Toggle Search"><i class="fas fa-search"></i></button>
                             <button class="editor-button" onclick="save()">Save</button>
+                            <button class="editor-button" onclick="saveWithNewPassword()" title="Save with New Password">🔐</button>
                         </div>
                     </div>
                     <div id="searchBar" class="search-bar hidden">

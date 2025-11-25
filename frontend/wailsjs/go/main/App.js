@@ -30,6 +30,10 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function SaveAsNewPassword(arg1, arg2) {
+  return window['go']['main']['App']['SaveAsNewPassword'](arg1, arg2);
+}
+
 export function SaveFile(arg1, arg2) {
   return window['go']['main']['App']['SaveFile'](arg1, arg2);
 }
