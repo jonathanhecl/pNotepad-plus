@@ -8,6 +8,8 @@ let unlockBlock, editorBlock, statusElement, resultElement, passwordElement, fil
 let matches = [], currentMatch = -1;
 let savedSelection = null;
 let refreshInterval;
+let hasUnsavedChanges = false;
+let originalContent = "";
 
 window.save = function(content) {
     try {
@@ -18,6 +20,9 @@ window.save = function(content) {
                 statusElement.innerText = result;
             } else {
                 statusElement.innerText = "File saved.";
+                // Reset unsaved changes flag after successful save
+                hasUnsavedChanges = false;
+                originalContent = text;
             }
         });
     } catch (err) {
@@ -26,6 +31,44 @@ window.save = function(content) {
 }
 
 window.createNewFile = function () {
+    // Check for unsaved changes before creating new file
+    if (hasUnsavedChanges) {
+        const shouldSave = confirm("You have unsaved changes. Do you want to save before creating a new file?");
+        if (shouldSave) {
+            // Save current file first
+            const currentContent = document.getElementById("editor").innerHTML;
+            const password = passwordElement.value;
+            SaveFile(currentContent, password).then((result) => {
+                if (result) {
+                    statusElement.innerText = result;
+                } else {
+                    statusElement.innerText = "File saved.";
+                }
+                // Continue with new file creation after saving
+                performNewFileCreation();
+            }).catch((err) => {
+                console.error("Error saving file:", err);
+                // Still ask if user wants to continue without saving
+                const continueWithoutSave = confirm("Error saving file. Do you want to continue creating a new file without saving?");
+                if (continueWithoutSave) {
+                    performNewFileCreation();
+                }
+            });
+            return; // Exit early, performNewFileCreation will be called after save
+        } else {
+            // User chose not to save, continue with new file creation
+            const confirmContinue = confirm("Are you sure you want to create a new file without saving your changes?");
+            if (!confirmContinue) {
+                return; // Cancel the new file creation
+            }
+        }
+    }
+    
+    // No unsaved changes or user confirmed to proceed without saving
+    performNewFileCreation();
+}
+
+function performNewFileCreation() {
     const proposedName = prompt('New file name (optional):', '');
     if (proposedName === null) {
         return;
@@ -37,6 +80,9 @@ window.createNewFile = function () {
                 document.getElementById("editor").innerHTML = result.substring(1);
                 statusElement.innerText = "New file created.";
                 refreshFileList();
+                // Reset unsaved changes tracking for new file
+                hasUnsavedChanges = false;
+                originalContent = result.substring(1);
             } else {
                 resultElement.innerText = result || "Could not create file.";
             }
@@ -44,7 +90,7 @@ window.createNewFile = function () {
         .catch((err) => {
             resultElement.innerText = "Error: " + err;
         });
-};
+}
 
 window.unlock = function () {
     let password = passwordElement.value;
@@ -58,6 +104,10 @@ window.unlock = function () {
                     editorBlock.style.display = "flex";
                     document.getElementById("editor").innerHTML = result.substring(1);
                     document.getElementById("editor").focus();
+                    
+                    // Set original content for change tracking
+                    originalContent = result.substring(1);
+                    hasUnsavedChanges = false;
                     
                     // Start sidebar refresh
                     refreshFileList();
@@ -99,12 +149,53 @@ function refreshFileList() {
 
 // Function to switch file
 function switchFile(filename) {
+    // Check for unsaved changes before switching
+    if (hasUnsavedChanges) {
+        const shouldSave = confirm(`You have unsaved changes. Do you want to save before switching to ${filename}?`);
+        if (shouldSave) {
+            // Save current file first
+            const currentContent = document.getElementById("editor").innerHTML;
+            const password = passwordElement.value;
+            SaveFile(currentContent, password).then((result) => {
+                if (result) {
+                    statusElement.innerText = result;
+                } else {
+                    statusElement.innerText = "File saved.";
+                }
+                // Continue with file switch after saving
+                performFileSwitch(filename);
+            }).catch((err) => {
+                console.error("Error saving file:", err);
+                // Still ask if user wants to continue without saving
+                const continueWithoutSave = confirm(`Error saving file. Do you want to continue switching to ${filename} without saving?`);
+                if (continueWithoutSave) {
+                    performFileSwitch(filename);
+                }
+            });
+            return; // Exit early, performFileSwitch will be called after save
+        } else {
+            // User chose not to save, continue with switch
+            const confirmSwitch = confirm(`Are you sure you want to switch to ${filename} without saving your changes?`);
+            if (!confirmSwitch) {
+                return; // Cancel the switch
+            }
+        }
+    }
+    
+    // No unsaved changes or user confirmed to proceed without saving
+    performFileSwitch(filename);
+}
+
+function performFileSwitch(filename) {
     ChangeFile(filename).then((result) => {
         if (result.substring(0,1)==";") {
             // Success with current password
             document.getElementById("editor").innerHTML = result.substring(1);
             statusElement.innerText = "File loaded.";
             refreshFileList(); // Update active state
+            // Reset unsaved changes tracking
+            hasUnsavedChanges = false;
+            originalContent = result.substring(1);
         } else {
             // Failed, likely password difference. Show unlock screen.
             // The backend already updated the filename.
@@ -126,7 +217,12 @@ function switchFile(filename) {
 
 // editor
 window.formatTextInRealTime = function () {
-    statusElement.innerText = "Changes unsaved.";
+    // Check if content has actually changed
+    const currentContent = document.getElementById("editor").innerHTML;
+    if (currentContent !== originalContent) {
+        hasUnsavedChanges = true;
+        statusElement.innerText = "Changes unsaved.";
+    }
     document.execCommand('defaultParagraphSep', false, 'p');
 }
 
