@@ -399,11 +399,20 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear if empty
             if (term.length === 0) {
                  // Clear highlights without closing
+            if (term.length === 0) {
+                 // Clear highlights without closing
                  const editor = document.getElementById('editor');
-                 editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
+                 const marks = editor.querySelectorAll('mark.search-highlight');
+                 marks.forEach(mark => {
+                     const parent = mark.parentNode;
+                     while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                     parent.removeChild(mark);
+                 });
+                 editor.normalize();
                  matches = [];
                  currentMatch = -1;
                  document.getElementById('matchCount').innerText = '';
+            }
             }
         }
     });
@@ -490,32 +499,62 @@ window.findText = function() {
     const term = document.getElementById('searchInput').value;
     const editor = document.getElementById('editor');
     
-    // First, strip existing highlights to search in clean text
-    // This is crucial to avoid matching inside HTML tags or double marking
-    const content = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
+    // Clear existing highlights safely
+    const oldMarks = editor.querySelectorAll('mark.search-highlight');
+    oldMarks.forEach(mark => {
+        const parent = mark.parentNode;
+        while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+        parent.removeChild(mark);
+    });
+    editor.normalize(); // Merge adjacent text nodes
     
     if (!term || term.length < 2) {
-        editor.innerHTML = content; // Cleaned content
         matches = [];
         currentMatch = -1;
         document.getElementById('matchCount').innerText = '';
         return;
     }
     
-    const regex = new RegExp(`(${window.escapeRegExp(term)})`, 'gi');
-    // We need to be careful not to replace inside HTML tags if there are any (like <p> or <div>)
-    // But pNotepad uses execCommand which might insert <br> or <div>.
-    // Simple replacement on innerHTML is risky if matches overlap with tags.
-    // However, assuming simple text for now or careful regex.
+    matches = [];
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null, false);
+    const nodesToProcess = [];
+    let n;
+    while(n = walker.nextNode()) nodesToProcess.push(n);
     
-    // A safer approach for highlighting:
-    // 1. Split by tags? No, too complex.
-    // 2. Use the existing approach but careful.
+    const lowerTerm = term.toLowerCase();
     
-    const newContent = content.replace(regex, '<mark class="search-highlight">$1</mark>');
-    editor.innerHTML = newContent;
-    
-    matches = Array.from(editor.querySelectorAll('mark.search-highlight'));
+    nodesToProcess.forEach(node => {
+        let currentNode = node;
+        let text = currentNode.nodeValue;
+        let lowerText = text.toLowerCase();
+        let matchIndex = 0;
+        
+        while ((matchIndex = lowerText.indexOf(lowerTerm)) !== -1) {
+             // Split at matchIndex
+             // If matchIndex is 0, splitText(0) returns the node itself? No.
+             // "abc".splitText(0) -> Node1="" Node2="abc"
+             // "abc".splitText(1) -> Node1="a" Node2="bc"
+             const matchNode = currentNode.splitText(matchIndex);
+             // matchNode contains "term..."
+             // if term is at start, currentNode becomes empty (but stays in DOM)
+             
+             const diff = matchNode.splitText(term.length);
+             // matchNode is now exactly "term"
+             // diff is the rest
+             
+             const mark = document.createElement('mark');
+             mark.className = 'search-highlight';
+             mark.textContent = matchNode.nodeValue;
+             matchNode.parentNode.replaceChild(mark, matchNode);
+             matches.push(mark);
+             
+             // Update for next iteration
+             currentNode = diff;
+             text = currentNode.nodeValue;
+             lowerText = text.toLowerCase();
+        }
+    });
+
     currentMatch = 0;
     document.getElementById('matchCount').innerText = `${matches.length} matches`;
     if (matches.length > 0) {
@@ -570,46 +609,22 @@ window.closeSearch = function() {
     // If not hidden, hide it
     searchBar.classList.add('hidden');
     
-    // We want to remove highlights but keep cursor at the current match if possible.
-    if (matches.length > 0 && currentMatch >= 0 && matches[currentMatch]) {
-        const currentElement = matches[currentMatch];
-        
-        // Insert a temporary marker
-        const marker = document.createElement('span');
-        marker.id = 'cursor-temp-marker';
-        marker.innerText = '\u200B'; // Zero-width space
-        
-        // Insert marker before the current match text
-        currentElement.parentNode.insertBefore(marker, currentElement);
-        
-        // Now replace all marks
-        editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
-        
-        // Find marker
-        const foundMarker = document.getElementById('cursor-temp-marker');
-        if (foundMarker) {
-            // Restore cursor
-            const selection = window.getSelection();
-            const range = document.createRange();
-            range.setStartAfter(foundMarker);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            
-            // Remove marker
-            foundMarker.remove();
-            
-            // Ensure we focus editor
-            editor.focus();
-        } else {
-             // Fallback
-             editor.focus();
-        }
-    } else {
-        // Just clear and focus
-        editor.innerHTML = editor.innerHTML.replace(/<mark class="search-highlight(?: current)?">([^<]*)<\/mark>/g, '$1');
-        editor.focus();
-    }
+    // Remove highlights safely
+    const marks = editor.querySelectorAll('mark.search-highlight');
+    // Save selection if possible? 
+    // The previous logic had a complex cursor restoration. 
+    // Since we are manipulating DOM nodes, the selection object might be preserved if it's not inside a removed node?
+    // Actually unwrapping nodes usually preserves selection if done carefully, but normalize() might shift it.
+    // Let's keep it simple: just unwrap.
+    
+    marks.forEach(mark => {
+        const parent = mark.parentNode;
+        while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+        parent.removeChild(mark);
+    });
+    editor.normalize();
+    
+    editor.focus();
     
     matches = [];
     currentMatch = -1;
