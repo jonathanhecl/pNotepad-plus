@@ -18,7 +18,7 @@ import (
 var assets embed.FS
 
 var (
-	version  string = "2.0.0"
+	version  string = "2.0.1"
 	filename string
 )
 
