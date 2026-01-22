@@ -308,3 +308,80 @@ mark.search-highlight.current {
     background-color: orange;
     color: black;
 }
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #252526;
+    border: 1px solid #454545;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    width: 400px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 12px 16px;
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #454545;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.modal-body {
+    padding: 20px 16px;
+    color: #cccccc;
+    font-size: 0.95rem;
+}
+
+.modal-footer {
+    padding: 12px 16px;
+    background-color: #2d2d2d;
+    border-top: 1px solid #454545;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.modal-footer .btn {
+    height: 32px;
+    line-height: 32px;
+    min-width: 80px;
+}
+
+.modal-btn-save {
+    background-color: #0e639c;
+    border-color: #1177bb;
+    color: white;
+}
+
+.modal-btn-save:hover {
+    background-color: #1177bb;
+}
+
+.modal-btn-discard {
+    background-color: #a43131;
+    border-color: #b33636;
+}
+
+.modal-btn-discard:hover {
+    background-color: #b33636;
+}
+
+.modal-btn-cancel {
+    background-color: #3d3d3d;
+}

@@ -1,7 +1,7 @@
 import './style.css';
 import './app.css';
 
-import {UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile, AssignFileAssociation, SaveAsNewPassword} from '../wailsjs/go/main/App';
+import { UnlockFile, SaveFile, GetVersion, GetFiles, ChangeFile, GetCurrentFile, CreateNewFile, AssignFileAssociation, SaveAsNewPassword } from '../wailsjs/go/main/App';
 
 // Variables globales
 let unlockBlock, editorBlock, statusElement, resultElement, passwordElement, fileListElement;
@@ -11,7 +11,7 @@ let refreshInterval;
 let hasUnsavedChanges = false;
 let originalContent = "";
 
-window.save = function(content) {
+window.save = function (content) {
     try {
         let text = document.getElementById("editor").innerHTML;
         let password = passwordElement.value;
@@ -30,28 +30,28 @@ window.save = function(content) {
     }
 }
 
-window.saveWithNewPassword = function() {
+window.saveWithNewPassword = function () {
     try {
         const newPassword = prompt("Enter new password for this file:");
         if (newPassword === null) {
             return; // User cancelled
         }
-        
+
         if (newPassword.trim() === "") {
             statusElement.innerText = "Password cannot be empty.";
             return;
         }
-        
+
         const confirmNewPassword = prompt("Confirm new password:");
         if (confirmNewPassword === null) {
             return; // User cancelled
         }
-        
+
         if (newPassword !== confirmNewPassword) {
             statusElement.innerText = "Passwords do not match.";
             return;
         }
-        
+
         let text = document.getElementById("editor").innerHTML;
         SaveAsNewPassword(text, newPassword).then((result) => {
             if (result) {
@@ -72,41 +72,58 @@ window.saveWithNewPassword = function() {
     }
 }
 
-window.createNewFile = function () {
+window.showUnsavedChangesDialog = function () {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('unsavedChangesModal');
+        const btnSave = document.getElementById('modalBtnSave');
+        const btnDiscard = document.getElementById('modalBtnDiscard');
+        const btnCancel = document.getElementById('modalBtnCancel');
+
+        modal.style.display = 'flex';
+
+        const cleanup = () => {
+            modal.style.display = 'none';
+            btnSave.onclick = null;
+            btnDiscard.onclick = null;
+            btnCancel.onclick = null;
+        };
+
+        btnSave.onclick = () => { cleanup(); resolve('save'); };
+        btnDiscard.onclick = () => { cleanup(); resolve('discard'); };
+        btnCancel.onclick = () => { cleanup(); resolve('cancel'); };
+    });
+}
+
+window.createNewFile = async function () {
     // Check for unsaved changes before creating new file
     if (hasUnsavedChanges) {
-        const shouldSave = confirm("You have unsaved changes. Do you want to save before creating a new file?");
-        if (shouldSave) {
+        const choice = await window.showUnsavedChangesDialog();
+
+        if (choice === 'cancel') {
+            return;
+        }
+
+        if (choice === 'save') {
             // Save current file first
             const currentContent = document.getElementById("editor").innerHTML;
             const password = passwordElement.value;
-            SaveFile(currentContent, password).then((result) => {
+            try {
+                const result = await SaveFile(currentContent, password);
                 if (result) {
                     statusElement.innerText = result;
                 } else {
                     statusElement.innerText = "File saved.";
                 }
-                // Continue with new file creation after saving
-                performNewFileCreation();
-            }).catch((err) => {
+            } catch (err) {
                 console.error("Error saving file:", err);
-                // Still ask if user wants to continue without saving
                 const continueWithoutSave = confirm("Error saving file. Do you want to continue creating a new file without saving?");
-                if (continueWithoutSave) {
-                    performNewFileCreation();
-                }
-            });
-            return; // Exit early, performNewFileCreation will be called after save
-        } else {
-            // User chose not to save, continue with new file creation
-            const confirmContinue = confirm("Are you sure you want to create a new file without saving your changes?");
-            if (!confirmContinue) {
-                return; // Cancel the new file creation
+                if (!continueWithoutSave) return;
             }
         }
+        // If discard, just proceed
     }
-    
-    // No unsaved changes or user confirmed to proceed without saving
+
+    // No unsaved changes or processed
     performNewFileCreation();
 }
 
@@ -118,7 +135,7 @@ function performNewFileCreation() {
 
     CreateNewFile(proposedName)
         .then((result) => {
-            if (result.substring(0,1)==";") {
+            if (result.substring(0, 1) == ";") {
                 document.getElementById("editor").innerHTML = result.substring(1);
                 statusElement.innerText = "New file created.";
                 refreshFileList();
@@ -140,17 +157,17 @@ window.unlock = function () {
     try {
         UnlockFile(password)
             .then((result) => {
-                if (result.substring(0,1)==";") {
+                if (result.substring(0, 1) == ";") {
                     statusElement.innerText = "File loaded.";
                     unlockBlock.style.display = "none";
                     editorBlock.style.display = "flex";
                     document.getElementById("editor").innerHTML = result.substring(1);
                     document.getElementById("editor").focus();
-                    
+
                     // Set original content for change tracking
                     originalContent = result.substring(1);
                     hasUnsavedChanges = false;
-                    
+
                     // Start sidebar refresh
                     refreshFileList();
                     if (refreshInterval) clearInterval(refreshInterval);
@@ -171,7 +188,7 @@ window.unlock = function () {
 function refreshFileList() {
     GetFiles().then((files) => {
         if (!files) return;
-        
+
         // Get current file to highlight
         GetCurrentFile().then((currentFile) => {
             fileListElement.innerHTML = '';
@@ -190,47 +207,42 @@ function refreshFileList() {
 }
 
 // Function to switch file
-function switchFile(filename) {
+async function switchFile(filename) {
     // Check for unsaved changes before switching
     if (hasUnsavedChanges) {
-        const shouldSave = confirm(`You have unsaved changes. Do you want to save before switching to ${filename}?`);
-        if (shouldSave) {
+        const choice = await window.showUnsavedChangesDialog();
+
+        if (choice === 'cancel') {
+            return;
+        }
+
+        if (choice === 'save') {
             // Save current file first
             const currentContent = document.getElementById("editor").innerHTML;
             const password = passwordElement.value;
-            SaveFile(currentContent, password).then((result) => {
+            try {
+                const result = await SaveFile(currentContent, password);
                 if (result) {
                     statusElement.innerText = result;
                 } else {
                     statusElement.innerText = "File saved.";
                 }
-                // Continue with file switch after saving
-                performFileSwitch(filename);
-            }).catch((err) => {
+            } catch (err) {
                 console.error("Error saving file:", err);
-                // Still ask if user wants to continue without saving
-                const continueWithoutSave = confirm(`Error saving file. Do you want to continue switching to ${filename} without saving?`);
-                if (continueWithoutSave) {
-                    performFileSwitch(filename);
-                }
-            });
-            return; // Exit early, performFileSwitch will be called after save
-        } else {
-            // User chose not to save, continue with switch
-            const confirmSwitch = confirm(`Are you sure you want to switch to ${filename} without saving your changes?`);
-            if (!confirmSwitch) {
-                return; // Cancel the switch
+                const continueWithoutSave = confirm("Error saving file. Do you want to continue switching without saving?");
+                if (!continueWithoutSave) return;
             }
         }
+        // If discard, proceed
     }
-    
-    // No unsaved changes or user confirmed to proceed without saving
+
+    // No unsaved changes or processed
     performFileSwitch(filename);
 }
 
 function performFileSwitch(filename) {
     ChangeFile(filename).then((result) => {
-        if (result.substring(0,1)==";") {
+        if (result.substring(0, 1) == ";") {
             // Success with current password
             document.getElementById("editor").innerHTML = result.substring(1);
             statusElement.innerText = "File loaded.";
@@ -252,7 +264,7 @@ function performFileSwitch(filename) {
         editorBlock.style.display = "none";
         unlockBlock.style.display = "flex";
         resultElement.innerText = "Error: " + err;
-        passwordElement.value = ""; 
+        passwordElement.value = "";
         passwordElement.focus();
     });
 }
@@ -338,9 +350,22 @@ document.querySelector('#app').innerHTML = `
             </div>
         </div>
     </div>
+    <div id="unsavedChangesModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">Unsaved Changes</div>
+            <div class="modal-body">
+                You have unsaved changes. Do you want to save them?
+            </div>
+            <div class="modal-footer">
+                <button class="btn modal-btn-save" id="modalBtnSave">Save</button>
+                <button class="btn modal-btn-discard" id="modalBtnDiscard">Don't Save</button>
+                <button class="btn modal-btn-cancel" id="modalBtnCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
 `;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Inicializar variables globales
     unlockBlock = document.getElementById("unlockBlock");
     editorBlock = document.getElementById("editorBlock");
@@ -348,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
     resultElement = document.getElementById("result");
     passwordElement = document.getElementById("password");
     fileListElement = document.getElementById("fileList");
-    
+
     // Set focus after a small delay to ensure the element is ready
     setTimeout(() => {
         passwordElement.focus();
@@ -365,13 +390,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('findPrevBtn').addEventListener('click', window.prevMatch);
     document.getElementById('toggleSearch').addEventListener('click', window.toggleSearch);
     document.getElementById('closeSearchBtn').addEventListener('click', window.closeSearch);
-    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    document.getElementById('searchInput').addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             if (e.shiftKey) {
-                 window.prevMatch();
+                window.prevMatch();
             } else {
-                 // If there are already matches, go to next; otherwise, search
+                // If there are already matches, go to next; otherwise, search
                 if (matches.length > 0) {
                     window.nextMatch();
                 } else {
@@ -389,36 +414,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // or enable realtime if requested. The original was "Find" button or Enter.
         }
     });
-    
+
     // Realtime search on input
-    document.getElementById('searchInput').addEventListener('input', function(e) {
+    document.getElementById('searchInput').addEventListener('input', function (e) {
         const term = this.value;
         if (term.length >= 2) {
-             window.findText();
+            window.findText();
         } else {
             // Clear if empty
             if (term.length === 0) {
-                 // Clear highlights without closing
-            if (term.length === 0) {
-                 // Clear highlights without closing
-                 const editor = document.getElementById('editor');
-                 const marks = editor.querySelectorAll('mark.search-highlight');
-                 marks.forEach(mark => {
-                     const parent = mark.parentNode;
-                     while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-                     parent.removeChild(mark);
-                 });
-                 editor.normalize();
-                 matches = [];
-                 currentMatch = -1;
-                 document.getElementById('matchCount').innerText = '';
-            }
+                // Clear highlights without closing
+                if (term.length === 0) {
+                    // Clear highlights without closing
+                    const editor = document.getElementById('editor');
+                    const marks = editor.querySelectorAll('mark.search-highlight');
+                    marks.forEach(mark => {
+                        const parent = mark.parentNode;
+                        while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                        parent.removeChild(mark);
+                    });
+                    editor.normalize();
+                    matches = [];
+                    currentMatch = -1;
+                    document.getElementById('matchCount').innerText = '';
+                }
             }
         }
     });
 
     // Global keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         // F3 to open search or next match
         if (e.key === 'F3') {
             e.preventDefault();
@@ -432,11 +457,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
-        
+
         // Ctrl+F
         if (e.ctrlKey && e.key.toLowerCase() === 'f') {
-             e.preventDefault();
-             window.toggleSearch();
+            e.preventDefault();
+            window.toggleSearch();
         }
 
         if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
@@ -447,30 +472,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Editor-specific paste handling
     const editor = document.getElementById('editor');
-    
-    editor.addEventListener('paste', function(e) {
+
+    editor.addEventListener('paste', function (e) {
         e.preventDefault();
-        
+
         // Get plain text from clipboard
         const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-        
+
         // Use execCommand to insert text so it's added to undo history
         document.execCommand('insertText', false, text);
-        
+
         // Trigger the input event to mark as unsaved
         formatTextInRealTime();
     });
 
     // Close popup on outside click - REMOVED for integrated bar
     // We want it to stay open
-    
+
     const associateButton = document.querySelector('.sidebar-associate-button');
     if (associateButton) {
         associateButton.addEventListener('focus', (e) => e.target.blur());
     }
 });
 
-window.assignAssociation = function() {
+window.assignAssociation = function () {
     if (!window.confirm('Do you want to associate .stxt files with pNotepad Plus?')) {
         return;
     }
@@ -490,15 +515,15 @@ window.assignAssociation = function() {
 };
 
 // Utility to escape regex special characters
-window.escapeRegExp = function(string) {
+window.escapeRegExp = function (string) {
     return string.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
 };
 
 // Function to find and highlight matches
-window.findText = function() {
+window.findText = function () {
     const term = document.getElementById('searchInput').value;
     const editor = document.getElementById('editor');
-    
+
     // Clear existing highlights safely
     const oldMarks = editor.querySelectorAll('mark.search-highlight');
     oldMarks.forEach(mark => {
@@ -507,51 +532,51 @@ window.findText = function() {
         parent.removeChild(mark);
     });
     editor.normalize(); // Merge adjacent text nodes
-    
+
     if (!term || term.length < 2) {
         matches = [];
         currentMatch = -1;
         document.getElementById('matchCount').innerText = '';
         return;
     }
-    
+
     matches = [];
     const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null, false);
     const nodesToProcess = [];
     let n;
-    while(n = walker.nextNode()) nodesToProcess.push(n);
-    
+    while (n = walker.nextNode()) nodesToProcess.push(n);
+
     const lowerTerm = term.toLowerCase();
-    
+
     nodesToProcess.forEach(node => {
         let currentNode = node;
         let text = currentNode.nodeValue;
         let lowerText = text.toLowerCase();
         let matchIndex = 0;
-        
+
         while ((matchIndex = lowerText.indexOf(lowerTerm)) !== -1) {
-             // Split at matchIndex
-             // If matchIndex is 0, splitText(0) returns the node itself? No.
-             // "abc".splitText(0) -> Node1="" Node2="abc"
-             // "abc".splitText(1) -> Node1="a" Node2="bc"
-             const matchNode = currentNode.splitText(matchIndex);
-             // matchNode contains "term..."
-             // if term is at start, currentNode becomes empty (but stays in DOM)
-             
-             const diff = matchNode.splitText(term.length);
-             // matchNode is now exactly "term"
-             // diff is the rest
-             
-             const mark = document.createElement('mark');
-             mark.className = 'search-highlight';
-             mark.textContent = matchNode.nodeValue;
-             matchNode.parentNode.replaceChild(mark, matchNode);
-             matches.push(mark);
-             
-             // Update for next iteration
-             currentNode = diff;
-             text = currentNode.nodeValue;
-             lowerText = text.toLowerCase();
+            // Split at matchIndex
+            // If matchIndex is 0, splitText(0) returns the node itself? No.
+            // "abc".splitText(0) -> Node1="" Node2="abc"
+            // "abc".splitText(1) -> Node1="a" Node2="bc"
+            const matchNode = currentNode.splitText(matchIndex);
+            // matchNode contains "term..."
+            // if term is at start, currentNode becomes empty (but stays in DOM)
+
+            const diff = matchNode.splitText(term.length);
+            // matchNode is now exactly "term"
+            // diff is the rest
+
+            const mark = document.createElement('mark');
+            mark.className = 'search-highlight';
+            mark.textContent = matchNode.nodeValue;
+            matchNode.parentNode.replaceChild(mark, matchNode);
+            matches.push(mark);
+
+            // Update for next iteration
+            currentNode = diff;
+            text = currentNode.nodeValue;
+            lowerText = text.toLowerCase();
         }
     });
 
@@ -566,7 +591,7 @@ window.findText = function() {
 };
 
 // Function to navigate to next match
-window.nextMatch = function() {
+window.nextMatch = function () {
     if (matches.length === 0) {
         window.findText();
         return;
@@ -578,7 +603,7 @@ window.nextMatch = function() {
 };
 
 // Function to navigate to previous match
-window.prevMatch = function() {
+window.prevMatch = function () {
     if (matches.length === 0) return;
     matches[currentMatch].classList.remove('current');
     currentMatch = (currentMatch - 1 + matches.length) % matches.length;
@@ -587,7 +612,7 @@ window.prevMatch = function() {
 };
 
 // Search Bar control functions
-window.toggleSearch = function() {
+window.toggleSearch = function () {
     const searchBar = document.getElementById('searchBar');
     if (searchBar.classList.contains('hidden')) {
         searchBar.classList.remove('hidden');
@@ -602,13 +627,13 @@ window.toggleSearch = function() {
     }
 };
 
-window.closeSearch = function() {
+window.closeSearch = function () {
     const editor = document.getElementById('editor');
     const searchBar = document.getElementById('searchBar');
-    
+
     // If not hidden, hide it
     searchBar.classList.add('hidden');
-    
+
     // Remove highlights safely
     const marks = editor.querySelectorAll('mark.search-highlight');
     // Save selection if possible? 
@@ -616,16 +641,16 @@ window.closeSearch = function() {
     // Since we are manipulating DOM nodes, the selection object might be preserved if it's not inside a removed node?
     // Actually unwrapping nodes usually preserves selection if done carefully, but normalize() might shift it.
     // Let's keep it simple: just unwrap.
-    
+
     marks.forEach(mark => {
         const parent = mark.parentNode;
         while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
         parent.removeChild(mark);
     });
     editor.normalize();
-    
+
     editor.focus();
-    
+
     matches = [];
     currentMatch = -1;
     document.getElementById('matchCount').innerText = '';
